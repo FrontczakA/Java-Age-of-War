@@ -6,4 +6,4 @@ If there is an error like
 input == null
 ```
 in your compiler check if "grafiki" folder is in "out/production/JavaAgeOfWar/game" directory, if not copy it there.
-###To run game compile GameTest through IntelliJ.
+### To run game compile GameTest through IntelliJ.
