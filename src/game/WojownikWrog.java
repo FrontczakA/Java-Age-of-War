@@ -12,41 +12,61 @@ public class WojownikWrog extends Wojownik{
     };
 
 
-    public void przesunTest(int pixels, Baza bazaGracza, JLabel hpBazyGracza, JPanel backgroundPanel,  ArrayList<Wojownik> listaWojownikow) {
-        this.pozycjaX = getX();
-        this.pozycjaX -= pixels;
-        this.repaint();
-        this.setLocation(pozycjaX, getY());
+    public void przesunTest(
+            int pixels,
+            Baza bazaGracza,
+            JLabel hpBazyGracza,
+            JPanel backgroundPanel,
+            ArrayList<Wojownik> listaWojownikow) {
+
+        if (!aktywny) {
+            return;
+        }
+
+        pozycjaX = getX() - pixels;
+        setLocation(pozycjaX, getY());
 
         for (Wojownik wojownik : listaWojownikow) {
-            if (this.getX() == wojownik.getX()) {
-                if (this.damage > wojownik.damage) {
-                    wojownik.setBounds(-100,2000,0,0);
-                    backgroundPanel.remove(wojownik);
-                } else if (this.damage < wojownik.damage) {
-                    backgroundPanel.remove(this);
-                    this.setBounds(-100,2000,0,0);
 
-                }
-                else {
+            if (!wojownik.aktywny) {
+                continue;
+            }
+
+            if (getBounds().intersects(wojownik.getBounds())) {
+
+                if (damage > wojownik.damage) {
+                    wojownik.aktywny = false;
+                    backgroundPanel.remove(wojownik);
+
+                } else if (damage < wojownik.damage) {
+                    aktywny = false;
+                    backgroundPanel.remove(this);
+
+                } else {
+                    aktywny = false;
+                    wojownik.aktywny = false;
+
                     backgroundPanel.remove(this);
                     backgroundPanel.remove(wojownik);
-                    wojownik.setBounds(-100,2000,0,0);
-                    this.setBounds(-100,2000,0,0);
-
                 }
+
+                backgroundPanel.repaint();
+                break;
             }
         }
 
-        if(pozycjaX == 100){
-            bazaGracza.odejmijHP(this.damage);
+        if (!aktywny) {
+            return;
+        }
+
+        if (getX() <= 100) {
+            aktywny = false;
+
+            bazaGracza.odejmijHP(damage);
             hpBazyGracza.setText("Punkty życia bazy: " + bazaGracza.hp);
 
             backgroundPanel.remove(this);
-            this.removeAll();
-            System.gc();
+            backgroundPanel.repaint();
         }
     }
-
-
 }

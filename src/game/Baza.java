@@ -3,6 +3,7 @@ package game;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.io.File;
 import java.io.IOException;
 
 public class Baza extends JPanel {
@@ -15,7 +16,7 @@ public class Baza extends JPanel {
         this.pieniadze = pieniadze_in;
 
         try {
-            bazaImage = ImageIO.read(getClass().getResource(imagePath));
+            bazaImage = ImageIO.read(new File(imagePath));
         } catch (IOException e) {
             e.printStackTrace();
         }

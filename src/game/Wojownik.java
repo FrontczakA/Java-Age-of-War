@@ -3,6 +3,7 @@ package game;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -11,13 +12,14 @@ public class Wojownik extends JPanel {
     public Image wojownikImage;
     public int pozycjaX;
     public int koszt;
+    public boolean aktywny = true;
 
     Wojownik(int damage_in, int koszt_in, String imagePath) {
 
         damage = damage_in;
         koszt = koszt_in;
         try {
-            wojownikImage = ImageIO.read(getClass().getResource(imagePath));
+            wojownikImage = ImageIO.read(new File(imagePath));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -39,43 +41,68 @@ public class Wojownik extends JPanel {
         }
     }
 
-    public void przesunTest(int pixels, Baza bazaPrzeciwnika, JLabel hpBazyWroga, JPanel backgroundPanel, ArrayList<WojownikWrog> wojownicyWrogowie, int nagrodaDojsciaDoBazy, Baza bazaGracza, JLabel pieniadze) {
-        this.pozycjaX = getX();
-        this.pozycjaX += pixels;
-        repaint();
-        this.setLocation(pozycjaX, getY());
-        for (WojownikWrog wojownikWrog : wojownicyWrogowie) {
-            if (this.getX() == wojownikWrog.getX()) {
-                if (this.damage > wojownikWrog.damage) {
-                    backgroundPanel.remove(wojownikWrog);
-                    wojownikWrog.setBounds(2000,2000,0,0);
-                } else if (this.damage < wojownikWrog.damage) {
+    public void przesunTest(
+            int pixels,
+            Baza bazaPrzeciwnika,
+            JLabel hpBazyWroga,
+            JPanel backgroundPanel,
+            ArrayList<WojownikWrog> wojownicyWrogowie,
+            int nagrodaDojsciaDoBazy,
+            Baza bazaGracza,
+            JLabel pieniadze) {
+
+        if (!aktywny) {
+            return;
+        }
+
+        pozycjaX = getX() + pixels;
+        setLocation(pozycjaX, getY());
+
+        for (WojownikWrog wrog : wojownicyWrogowie) {
+
+            if (!wrog.aktywny) {
+                continue;
+            }
+
+            // Kolizja, również gdy jednostki nie mają identycznego X
+            if (getBounds().intersects(wrog.getBounds())) {
+
+                if (damage > wrog.damage) {
+                    wrog.aktywny = false;
+                    backgroundPanel.remove(wrog);
+
+                } else if (damage < wrog.damage) {
+                    aktywny = false;
                     backgroundPanel.remove(this);
-                    this.setBounds(2000,2000,0,0);
-                }
-                else {
+
+                } else {
+                    aktywny = false;
+                    wrog.aktywny = false;
+
                     backgroundPanel.remove(this);
-                    backgroundPanel.remove(wojownikWrog);
-                    wojownikWrog.setBounds(0,20000,0,0);
-                    this.setBounds(2000,2000,0,0);
+                    backgroundPanel.remove(wrog);
                 }
+
+                backgroundPanel.repaint();
+                break;
             }
         }
 
-        if (this.getX() == 1000) {
+        if (!aktywny) {
+            return;
+        }
+
+        if (getX() >= 1000) {
+            aktywny = false;
+
             bazaGracza.dodajPieniadze(nagrodaDojsciaDoBazy);
-            pieniadze.setText("Pieniadze: " + bazaGracza.pieniadze);
-            bazaPrzeciwnika.odejmijHP(this.damage);
+            pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
+
+            bazaPrzeciwnika.odejmijHP(damage);
             hpBazyWroga.setText("Punkty życia bazy: " + bazaPrzeciwnika.hp);
 
             backgroundPanel.remove(this);
-
-            //this = null;    nie da sie     jak usunac obiekt zeby zwalnial pamiec a nie tylko robil sie niewidoczny
-            this.removeAll();
-            System.gc();
-
+            backgroundPanel.repaint();
         }
     }
-
-
 }

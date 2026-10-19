@@ -1,12 +1,13 @@
 package game;
+
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.io.File;
 import java.io.IOException;
 import javax.sound.sampled.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -32,16 +33,18 @@ class Game extends JFrame implements ActionListener {
     public JLabel kosztT3;
     public JLabel kosztE;
     public JPanel backgroundPanel;
-    public JLabel koniecGry= new JLabel();
+    public JLabel koniecGry = new JLabel();
     ArrayList<Wojownik> listaWojownikow = new ArrayList<>();
     ArrayList<WojownikWrog> listaWrogow = new ArrayList<>();
     public int era = 1;
     public int eraPrzeciwnika = 1;
+    private long ostatniaRekrutacjaGracza = 0;
+    private long ostatniaRekrutacjaWroga = 0;
+    private static final long COOLDOWN_REKRUTACJI = 750;
 
     public Game() {
         setTitle("Age of War [FrontczakJZOgr1]");
         setSize(DEFAULT_WIDTH, DEFAULT_HEIGHT);
-
 
         // Przyciski
         rozpocznij = new JButton("Rozpocznij grę");
@@ -50,10 +53,8 @@ class Game extends JFrame implements ActionListener {
         walkaT2 = new JButton("Zrekrutuj zwyczajnego wojownika");
         walkaT3 = new JButton("Zrekrutuj silnego wojownika");
         ewolucja = new JButton("Przejdź do następnej ery");
-
         rozpocznij.setBounds(460, 150, 250, 100);
         zakoncz.setBounds(460, 300, 250, 100);
-
         walkaT3.setBounds(615, 50, 250, 50);
         walkaT2.setBounds(315, 50, 250, 50);
         walkaT1.setBounds(15, 50, 250, 50);
@@ -62,14 +63,6 @@ class Game extends JFrame implements ActionListener {
         walkaT2.setVisible(false);
         walkaT3.setVisible(false);
         ewolucja.setVisible(false);
-
-        add(walkaT1);
-        add(walkaT2);
-        add(walkaT3);
-        add(ewolucja);
-        add(rozpocznij);
-        add(zakoncz);
-
         rozpocznij.addActionListener(this);
         zakoncz.addActionListener(this);
         walkaT1.addActionListener(this);
@@ -79,7 +72,7 @@ class Game extends JFrame implements ActionListener {
 
         // Wczytanie obrazka tła
         try {
-            backgroundImage = ImageIO.read(getClass().getResource("grafiki/background.jpg"));
+            backgroundImage = ImageIO.read(new File("graphics/background.jpg"));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -94,12 +87,17 @@ class Game extends JFrame implements ActionListener {
         };
         backgroundPanel.setLayout(null);
         add(backgroundPanel);
-
+        backgroundPanel.add(walkaT1);
+        backgroundPanel.add(walkaT2);
+        backgroundPanel.add(walkaT3);
+        backgroundPanel.add(ewolucja);
+        backgroundPanel.add(rozpocznij);
+        backgroundPanel.add(zakoncz);
         //Soundtrack
 
         try {
-            URL soundtrackUrl = getClass().getResource("grafiki/soundtrack.wav");
-            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(soundtrackUrl);
+            File soundtrackFile = new File("graphics/soundtrack.wav");
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(soundtrackFile);
             soundtrack = AudioSystem.getClip();
             soundtrack.open(audioInputStream);
             soundtrack.loop(Clip.LOOP_CONTINUOUSLY);
@@ -114,74 +112,44 @@ class Game extends JFrame implements ActionListener {
     }
 
     public void baseGSpawn() {
-        if (era == 1) {
-            String baseG = "grafiki/t1_base_gracz.png";
-
-            bazaGracza = new Baza(100, baseG, 150);
-            bazaGracza.setBounds(0, 550, 150, 150);
-            bazaGracza.setOpaque(false);
-            backgroundPanel.add(bazaGracza);
-        } else if (era == 2) {
-            String baseG = "grafiki/t2_base_gracz.png";
-
-            bazaGracza = new Baza(150, baseG, 300);
-            bazaGracza.setBounds(-25, 500, 200, 300);
-            bazaGracza.setOpaque(false);
-            backgroundPanel.add(bazaGracza);
+        switch (era) {
+            case 1 -> bazaGracza = stworzBaze(100, "graphics/t1_base_gracz.png", 150, 0, 550, 150, 150);
+            case 2 -> bazaGracza = stworzBaze(150, "graphics/t2_base_gracz.png", 300, -25, 500, 200, 300);
+            case 3 -> bazaGracza = stworzBaze(200, "graphics/t3_base_gracz.png", 450, -40, 400, 250, 350);
+        }
+        if (hpBazyGracza != null && bazaGracza != null) {
             hpBazyGracza.setText("Punkty życia bazy: " + bazaGracza.hp);
-            pieniadze.setText("Pieniadze: " + bazaGracza.pieniadze);
-
-        } else if (era == 3) {
-            String baseG = "grafiki/t3_base_gracz.png";
-
-            bazaGracza = new Baza(200, baseG, 450);
-            bazaGracza.setBounds(-40, 400, 250, 350);
-            bazaGracza.setOpaque(false);
-            backgroundPanel.add(bazaGracza);
-            hpBazyGracza.setText("Punkty życia bazy: " + bazaGracza.hp);
-            pieniadze.setText("Pieniadze: " + bazaGracza.pieniadze);
-
+            pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
         }
     }
 
-    public void baseGRemove() {
-        bazaGracza.setVisible(false);
-        backgroundPanel.remove(bazaGracza);
-    }
-
-    public void baseWRemove() {
-        bazaPrzeciwnika.setVisible(false);
-        backgroundPanel.remove(bazaPrzeciwnika);
-    }
     public void baseWSpawn() {
-
-    if(eraPrzeciwnika==1) {
-        String baseW = "grafiki/t1_base_wrog.png";
-
-        bazaPrzeciwnika = new Baza(100, baseW, 0);
-        bazaPrzeciwnika.setBounds(1050, 550, 150, 150);
-        bazaPrzeciwnika.setOpaque(false);
-        backgroundPanel.add(bazaPrzeciwnika);
-    }
-    else if(eraPrzeciwnika == 2){
-        String baseW = "grafiki/t2_base_wrog.png";
-
-        bazaPrzeciwnika = new Baza(150, baseW,0);
-        bazaPrzeciwnika.setBounds(1050, 500, 200, 300);
-        bazaPrzeciwnika.setOpaque(false);
-        backgroundPanel.add(bazaPrzeciwnika);
-        hpBazyWroga.setText("Punkty życia bazy: " + bazaPrzeciwnika.hp);
-    }
-    else if(eraPrzeciwnika == 3){
-        String baseW = "grafiki/t3_base_wrog.png";
-
-        bazaPrzeciwnika = new Baza(200, baseW,0);
-        bazaPrzeciwnika.setBounds(1000, 400, 250, 350);
-        bazaPrzeciwnika.setOpaque(false);
-        backgroundPanel.add(bazaPrzeciwnika);
-        hpBazyWroga.setText("Punkty życia bazy: " + bazaPrzeciwnika.hp);
+        switch (eraPrzeciwnika) {
+            case 1 -> bazaPrzeciwnika = stworzBaze(100, "graphics/t1_base_wrog.png", 0, 1050, 550, 150, 150);
+            case 2 -> bazaPrzeciwnika = stworzBaze(150, "graphics/t2_base_wrog.png", 0, 1050, 500, 200, 300);
+            case 3 -> bazaPrzeciwnika = stworzBaze(200, "graphics/t3_base_wrog.png", 0, 1000, 400, 250, 350);
+        }
+        if (hpBazyWroga != null && bazaPrzeciwnika != null) {
+            hpBazyWroga.setText("Punkty życia bazy: " + bazaPrzeciwnika.hp
+            );
+        }
     }
 
+    private Baza stworzBaze(int hp, String grafika, int pieniadze, int x, int y, int szerokosc, int wysokosc) {
+        Baza baza = new Baza(hp, grafika, pieniadze);
+        baza.setBounds(x, y, szerokosc, wysokosc);
+        baza.setOpaque(false);
+        backgroundPanel.add(baza);
+        return baza;
+    }
+
+    private void usunBaze(Baza baza) {
+        if (baza == null) {
+            return;
+        }
+        backgroundPanel.remove(baza);
+        backgroundPanel.revalidate();
+        backgroundPanel.repaint();
     }
 
     public void baseInfo() {
@@ -189,18 +157,14 @@ class Game extends JFrame implements ActionListener {
         pieniadze.setBounds(20, 150, 200, 50);
         backgroundPanel.add(pieniadze);
         pieniadze.setVisible(false);
-
-
         hpBazyGracza = new JLabel("Punkty życia bazy: " + bazaGracza.hp);
         hpBazyGracza.setBounds(20, 120, 200, 50);
         backgroundPanel.add(hpBazyGracza);
         hpBazyGracza.setVisible(false);
-
         hpBazyWroga = new JLabel("Punkty życia bazy: " + bazaPrzeciwnika.hp);
         hpBazyWroga.setBounds(1020, 120, 200, 50);
         backgroundPanel.add(hpBazyWroga);
         hpBazyWroga.setVisible(false);
-
     }
 
     public void jednostkiInfo() {
@@ -208,682 +172,312 @@ class Game extends JFrame implements ActionListener {
         kosztT1.setBounds(15, 0, 100, 50);
         backgroundPanel.add(kosztT1);
         kosztT1.setVisible(false);
-
         kosztT2 = new JLabel("Koszt: " + 100);
         kosztT2.setBounds(315, 0, 100, 50);
         backgroundPanel.add(kosztT2);
         kosztT2.setVisible(false);
-
         kosztT3 = new JLabel("Koszt: " + 150);
         kosztT3.setBounds(615, 0, 100, 50);
         backgroundPanel.add(kosztT3);
         kosztT3.setVisible(false);
-
         kosztE = new JLabel("Koszt: " + 400);
         kosztE.setBounds(915, 0, 100, 50);
         backgroundPanel.add(kosztE);
         kosztE.setVisible(false);
-
-
     }
-
-
 
     public void actionPerformed(ActionEvent e) {
         Object source = e.getSource();
+
         if (source == rozpocznij) {
-
-            era = 1;
-            eraPrzeciwnika = 1;
-
-            baseWRemove();
-            baseWSpawn();
-            baseGRemove();
-            baseGSpawn();
-
-            bazaGracza.hp = 100;
-            bazaGracza.pieniadze = 150;
-            bazaPrzeciwnika.hp = 100;
-            hpBazyGracza.setText("Punkty życia bazy: "+ bazaGracza.hp);
-            hpBazyWroga.setText("Punkty życia bazy: "+ bazaPrzeciwnika.hp);
-            pieniadze.setText("Pieniadze: "+ bazaGracza.pieniadze);
-            rozpocznij.setVisible(false);
-            zakoncz.setVisible(false);
-
-            walkaT1.setVisible(true);
-            walkaT2.setVisible(true);
-            walkaT3.setVisible(true);
-            ewolucja.setVisible(true);
-
-            hpBazyGracza.setVisible(true);
-            hpBazyWroga.setVisible(true);
-            pieniadze.setVisible(true);
-
-            kosztE.setVisible(true);
-            kosztT1.setVisible(true);
-            kosztT2.setVisible(true);
-            kosztT3.setVisible(true);
-
-            //Przejscie przeciwnika do nowej ery w przedziale od 20 do 60 sekundy od rozpoczecia gry
-            Random rand = new Random();
-            int liczba1 = rand.nextInt(20000) + 40000;
-
-            Timer timerPrzeciwnikEra2 = new Timer(liczba1, g -> {
-                eraPrzeciwnika = 2;
-                baseWRemove();
-                baseWSpawn();
-            });
-
-            timerPrzeciwnikEra2.start();
-
-            //Przejscie przeciwnika do nowej ery w przedziale od 80 do 160 sekundy od rozpoczecia gry
-            int liczba2 = rand.nextInt(80000) + 80000;
-
-            Timer timerPrzeciwnikEra3 = new Timer(liczba2, g -> {
-                eraPrzeciwnika = 3;
-                baseWRemove();
-                baseWSpawn();
-            });
-            timerPrzeciwnikEra3.start();
-
-            timerPrzeciwnikEra3.setRepeats(false);
-            timerPrzeciwnikEra2.setRepeats(false);
-
-            //Obsluga przeciwnika
-            Timer timerPrzeciwnik = new Timer(3800, g -> {
-                if(bazaGracza.hp>0&&bazaPrzeciwnika.hp>0){
-                    OperacjePrzeciwnika();
-                }
-                koniecGry(bazaGracza,bazaPrzeciwnika,timerPrzeciwnikEra2,timerPrzeciwnikEra3);
-            });
-            timerPrzeciwnik.setRepeats(true);
-            timerPrzeciwnik.start();
-
-            koniecGry.setVisible(false);
-
-            //Dodawanie pieniedzy co 5 sekund
-
-            Timer timer = new Timer(5000, g -> {
-                bazaGracza.dodajPieniadze(100);
-                pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
-            });
-            timer.start();
-
-
-        }
-        else if (source == zakoncz) {
+            rozpocznijGre();
+        } else if (source == zakoncz) {
             dispose();
-    }
-
-        else if (source == walkaT1) {
-                if (era == 1) {
-
-                                Wojownik wojownik = new Wojownik(5,50, "grafiki\\t1_m_gracz.png");
-                                listaWojownikow.add(wojownik);
-
-                        if((bazaGracza.pieniadze-wojownik.koszt)>=0){
-                                bazaGracza.odejmijPieniandze(wojownik.koszt);
-                                pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
-
-                                wojownik.setOpaque(false);
-                                wojownik.setVisible(true);
-                                wojownik.setBounds(140, 600, 175, 150);
-
-                                backgroundPanel.add(wojownik);
-
-                                //Ruch jednostki
-                                Timer timer = new Timer(25 , new ActionListener() {
-                                    public void actionPerformed(ActionEvent e) {
-
-                                        wojownik.przesunTest( 5, bazaPrzeciwnika, hpBazyWroga, backgroundPanel, listaWrogow, 25 , bazaGracza, pieniadze);
-                                        if(wojownik.getX() == 1000)
-                                        {
-                                             listaWojownikow.remove(wojownik);
-                                        }
-                                    }
-                                });
-
-
-                                timer.start();
-
-
-
-                                 }
-                        else {}
-
-                }
-
-
-            else if (era == 2){
-
-                        Wojownik wojownik = new Wojownik(10,100,"grafiki\\t2_m_gracz.png");
-                        listaWojownikow.add(wojownik);
-
-                        if((bazaGracza.pieniadze-wojownik.koszt)>=0) {
-                            bazaGracza.odejmijPieniandze(wojownik.koszt);
-                            pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
-
-                            wojownik.setOpaque(false);
-                            wojownik.setVisible(true);
-                            wojownik.setBounds(140, 585, 100, 125);
-
-                            backgroundPanel.add(wojownik);
-                            Timer timer = new Timer(25, new ActionListener() {
-                                public void actionPerformed(ActionEvent e) {
-                                    wojownik.przesunTest( 5, bazaPrzeciwnika, hpBazyWroga, backgroundPanel, listaWrogow, 50 , bazaGracza, pieniadze);
-                                    if(wojownik.getX() == 1000)
-                                    {
-                                        listaWojownikow.remove(wojownik);
-                                    }
-                                }
-                            });
-                            timer.start();
-                        }
-                else{}
-
-            }
-
-                else if (era == 3){
-                        Wojownik wojownik = new Wojownik(20,150,"grafiki\\t3_m_gracz.png");
-                        listaWojownikow.add(wojownik);
-
-                        if((bazaGracza.pieniadze-wojownik.koszt)>=0) {
-                            bazaGracza.odejmijPieniandze(wojownik.koszt);
-                            pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
-
-                            wojownik.setOpaque(false);
-                            wojownik.setVisible(true);
-                            wojownik.setBounds(140, 575, 115, 150);
-
-                            backgroundPanel.add(wojownik);
-                            Timer timer = new Timer(25, new ActionListener() {
-                                public void actionPerformed(ActionEvent e) {
-                                    wojownik.przesunTest( 5, bazaPrzeciwnika, hpBazyWroga, backgroundPanel, listaWrogow, 75 , bazaGracza, pieniadze);
-                                    if(wojownik.getX() == 1000)
-                                    {
-                                        listaWojownikow.remove(wojownik);
-                                    }
-                                }
-                            });
-                            timer.start();
-
-                        }
-                        else{}
-
-                }
-
-        }
-
-        else if (source == walkaT2){
-
-            if(era==1){
-                    Wojownik wojownik = new Wojownik(10,100,"grafiki\\t1_w_gracz.png");
-                    listaWojownikow.add(wojownik);
-
-                    if((bazaGracza.pieniadze-wojownik.koszt)>=0) {
-                        bazaGracza.odejmijPieniandze(wojownik.koszt);
-                        pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
-
-                        wojownik.setOpaque(false);
-                        wojownik.setVisible(true);
-                        wojownik.setBounds(140, 575, 175, 150);
-
-                        backgroundPanel.add(wojownik);
-
-                        Timer timer = new Timer(25, new ActionListener() {
-                            public void actionPerformed(ActionEvent e) {
-                                wojownik.przesunTest( 5, bazaPrzeciwnika, hpBazyWroga, backgroundPanel, listaWrogow, 25, bazaGracza, pieniadze);
-                                if(wojownik.getX() == 1000)
-                                {
-                                    listaWojownikow.remove(wojownik);
-                                }
-                            }
-                        });
-
-                        timer.start();
-
-
-                        }
-                else{}
-
-                }
-            else if(era == 2){
-                    Wojownik wojownik = new Wojownik(20,150,"grafiki\\t2_w_gracz.png");
-                    listaWojownikow.add(wojownik);
-
-                         if((bazaGracza.pieniadze-wojownik.koszt)>=0) {
-                        bazaGracza.odejmijPieniandze(wojownik.koszt);
-                        pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
-
-                        wojownik.setOpaque(false);
-                        wojownik.setVisible(true);
-                        wojownik.setBounds(140, 585, 100, 125);
-
-                        backgroundPanel.add(wojownik);
-
-                        Timer timer = new Timer(25, new ActionListener() {
-                            public void actionPerformed(ActionEvent e) {
-                                wojownik.przesunTest( 5, bazaPrzeciwnika, hpBazyWroga, backgroundPanel, listaWrogow, 50, bazaGracza, pieniadze);
-                                if(wojownik.getX() == 1000)
-                                {
-                                    listaWojownikow.remove(wojownik);
-                                }
-                            }
-                        });
-                        timer.start();
-
-
-                        }
-                else {}
-
-
-                }
-            else if (era == 3){
-                    Wojownik wojownik = new Wojownik(30,200,"grafiki\\t3_w_gracz.png");
-                    listaWojownikow.add(wojownik);
-
-                    if((bazaGracza.pieniadze-wojownik.koszt)>=0) {
-                        bazaGracza.odejmijPieniandze(wojownik.koszt);
-                        pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
-
-                        wojownik.setOpaque(false);
-                        wojownik.setVisible(true);
-                        wojownik.setBounds(140, 575, 90, 150);
-
-                        backgroundPanel.add(wojownik);
-                        Timer timer = new Timer(25, new ActionListener() {
-                            public void actionPerformed(ActionEvent e) {
-                                wojownik.przesunTest( 5, bazaPrzeciwnika, hpBazyWroga, backgroundPanel, listaWrogow, 75 , bazaGracza, pieniadze);
-                                if(wojownik.getX() == 1000)
-                                {
-                                    listaWojownikow.remove(wojownik);
-                                }
-                            }
-                        });
-                        timer.start();
-
-
-                    }
-                    else{}
-
-            }
-
-            }
-
-            else if (source == walkaT3){
-
-            if(era==1){
-                    Wojownik wojownik = new Wojownik(20,150,"grafiki\\t1_s_gracz.png");
-                    listaWojownikow.add(wojownik);
-
-                    if((bazaGracza.pieniadze-wojownik.koszt)>=0) {
-                        bazaGracza.odejmijPieniandze(wojownik.koszt);
-                        pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
-
-                        wojownik.setOpaque(false);
-                        wojownik.setVisible(true);
-                        wojownik.setBounds(140, 550, 175, 150);
-
-                        backgroundPanel.add(wojownik);
-
-                        Timer timer = new Timer(25, new ActionListener() {
-                            public void actionPerformed(ActionEvent e) {
-                                wojownik.przesunTest( 5, bazaPrzeciwnika, hpBazyWroga, backgroundPanel, listaWrogow, 25, bazaGracza, pieniadze);
-                                if(wojownik.getX() == 1000)
-                                {
-                                    listaWojownikow.remove(wojownik);
-                                }
-                            }
-                        });
-                        timer.start();
-
-
-                     }
-                else {}
-
-                }
-            else if(era == 2){
-                    Wojownik wojownik = new Wojownik( 30, 200, "grafiki\\t2_s_gracz.png");
-                    listaWojownikow.add(wojownik);
-
-                    if ((bazaGracza.pieniadze - wojownik.koszt) >= 0) {
-                        bazaGracza.odejmijPieniandze(wojownik.koszt);
-                        pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
-
-                        wojownik.setOpaque(false);
-                        wojownik.setVisible(true);
-                        wojownik.setBounds(140, 550, 200, 175);
-
-                        backgroundPanel.add(wojownik);
-
-                        Timer timer = new Timer(25, new ActionListener() {
-                            public void actionPerformed(ActionEvent e) {
-                                wojownik.przesunTest( 5, bazaPrzeciwnika, hpBazyWroga, backgroundPanel, listaWrogow, 50, bazaGracza, pieniadze);
-                                if(wojownik.getX() == 1000)
-                                {
-                                    listaWojownikow.remove(wojownik);
-                                }
-                            }
-                        });
-
-                        timer.start();
-
-
-                    } else {}
-
-
-            }
-            else if (era == 3){
-                    Wojownik wojownik = new Wojownik(40,250,"grafiki\\t3_s_gracz.png");
-                    listaWojownikow.add(wojownik);
-
-                    if((bazaGracza.pieniadze-wojownik.koszt)>=0) {
-                        bazaGracza.odejmijPieniandze(wojownik.koszt);
-                        pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
-
-                        wojownik.setOpaque(false);
-                        wojownik.setVisible(true);
-                        wojownik.setBounds(140, 570, 90, 150);
-
-                        backgroundPanel.add(wojownik);
-                        Timer timer = new Timer(25, new ActionListener() {
-                            public void actionPerformed(ActionEvent e) {
-                                wojownik.przesunTest( 5, bazaPrzeciwnika, hpBazyWroga, backgroundPanel, listaWrogow, 75 , bazaGracza, pieniadze);
-                                if(wojownik.getX() == 1000)
-                                {
-                                    listaWojownikow.remove(wojownik);
-                                }
-                            }
-                        });
-                        timer.start();
-
-
-                          }
-                    else{}
-            }
-
-            }
-            else if (source == ewolucja){
-                if(era == 1){
-                if((bazaGracza.pieniadze-400)>=0){
-                        bazaGracza.odejmijPieniandze(400);
-                        pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
-                        era = 2;
-                        baseGRemove();
-                        baseGSpawn();
-                        kosztT3.setText("Koszt :" + 200 );
-                        kosztT2.setText("Koszt :" + 150 );
-                        kosztT1.setText("Koszt :" + 100 );
-                        kosztE.setText("Koszt :" + 600 );
-                }
-                else{}
-                }
-                if(era == 2){
-                    if((bazaGracza.pieniadze-600)>=0){
-                        bazaGracza.odejmijPieniandze(600);
-                        pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
-                        era = 3;
-                        ewolucja.setVisible(false);
-                        baseGRemove();
-                        baseGSpawn();
-                        kosztT3.setText("Koszt :" + 250 );
-                        kosztT2.setText("Koszt :" + 200 );
-                        kosztT1.setText("Koszt :" + 150 );
-                        kosztE.setVisible(false);
-                    }else{}
-            }
-
+        } else if (source == walkaT1) {
+            rekrutujJednostke(1);
+        } else if (source == walkaT2) {
+            rekrutujJednostke(2);
+        } else if (source == walkaT3) {
+            rekrutujJednostke(3);
+        } else if (source == ewolucja) {
+            ewoluuj();
         }
     }
 
+    private void rekrutujJednostke(int typ) {
+        if (!czyMoznaRekrutowacGracza()) {
+            return;
+        }
+        switch (era) {
+            case 1 -> {
+                switch (typ) {
+                    case 1 -> utworzWojownika(5, 50, "graphics/t1_m_gracz.png",
+                            140, 600, 175, 150, 25);
+
+                    case 2 -> utworzWojownika(10, 100, "graphics/t1_w_gracz.png",
+                            140, 575, 175, 150, 25);
+
+                    case 3 -> utworzWojownika(20, 150, "graphics/t1_s_gracz.png",
+                            140, 550, 175, 150, 25);
+                }
+            }
+
+            case 2 -> {
+                switch (typ) {
+                    case 1 -> utworzWojownika(10, 100, "graphics/t2_m_gracz.png",
+                            140, 585, 100, 125, 50);
+
+                    case 2 -> utworzWojownika(20, 150, "graphics/t2_w_gracz.png",
+                            140, 585, 100, 125, 50);
+
+                    case 3 -> utworzWojownika(30, 200, "graphics/t2_s_gracz.png",
+                            140, 550, 200, 175, 50);
+                }
+            }
+
+            case 3 -> {
+                switch (typ) {
+                    case 1 -> utworzWojownika(20, 150, "graphics/t3_m_gracz.png",
+                            140, 575, 115, 150, 75);
+
+                    case 2 -> utworzWojownika(30, 200, "graphics/t3_w_gracz.png",
+                            140, 575, 90, 150, 75);
+
+                    case 3 -> utworzWojownika(40, 250, "graphics/t3_s_gracz.png",
+                            140, 570, 90, 150, 75);
+                }
+            }
+        }
+    }
+
+    private void utworzWojownika(int damage, int koszt, String sciezka, int x, int y, int width, int height, int nagroda) {
+        if (bazaGracza.pieniadze < koszt) {
+            return;
+        }
+        Wojownik wojownik = new Wojownik(damage, koszt, sciezka);
+        rekrutujWojownikaGracza(wojownik, x, y, width, height, nagroda);
+    }
+
+    private void rekrutujWojownikaGracza(Wojownik wojownik, int x, int y, int width, int height, int nagrodaDojsciaDoBazy) {
+        ostatniaRekrutacjaGracza = System.currentTimeMillis();
+        bazaGracza.odejmijPieniandze(wojownik.koszt);
+        pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
+        wojownik.setOpaque(false);
+        wojownik.setVisible(true);
+        wojownik.setBounds(x, y, width, height);
+        listaWojownikow.add(wojownik);
+        backgroundPanel.add(wojownik);
+        Timer timer = createTimerForPlayer(wojownik, nagrodaDojsciaDoBazy);
+        timer.start();
+    }
+
+    private void rozpocznijGre() {
+        ostatniaRekrutacjaGracza = 0;
+        ostatniaRekrutacjaWroga = 0;
+
+        era = 1;
+        eraPrzeciwnika = 1;
+
+        usunBaze(bazaPrzeciwnika);
+        baseWSpawn();
+
+        usunBaze(bazaGracza);;
+        baseGSpawn();
+
+        bazaGracza.hp = 100;
+        bazaGracza.pieniadze = 150;
+        bazaPrzeciwnika.hp = 100;
+
+        aktualizujInformacjeBaz();
+        ustawWidocznoscInterfejsu();
+
+        koniecGry.setVisible(false);
+
+        uruchomTimeryGry();
+    }
+
+    private void aktualizujInformacjeBaz() {
+        hpBazyGracza.setText("Punkty życia bazy: " + bazaGracza.hp);
+        hpBazyWroga.setText("Punkty życia bazy: " + bazaPrzeciwnika.hp);
+        pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
+    }
+
+    private void ustawWidocznoscInterfejsu() {
+        rozpocznij.setVisible(false);
+        zakoncz.setVisible(false);
+
+        walkaT1.setVisible(true);
+        walkaT2.setVisible(true);
+        walkaT3.setVisible(true);
+        ewolucja.setVisible(true);
+
+        hpBazyGracza.setVisible(true);
+        hpBazyWroga.setVisible(true);
+        pieniadze.setVisible(true);
+
+        kosztE.setVisible(true);
+        kosztT1.setVisible(true);
+        kosztT2.setVisible(true);
+        kosztT3.setVisible(true);
+    }
+
+    private void ewoluuj() {
+        if (era >= 3) {
+            return;
+        }
+
+        int kosztEwolucji = era == 1 ? 400 : 600;
+
+        if (bazaGracza.pieniadze < kosztEwolucji) {
+            return;
+        }
+
+        bazaGracza.odejmijPieniandze(kosztEwolucji);
+        pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
+
+        era++;
+
+        usunBaze(bazaGracza);;
+        baseGSpawn();
+
+        aktualizujKoszty();
+
+        if (era == 3) {
+            ewolucja.setVisible(false);
+            kosztE.setVisible(false);
+        }
+    }
+
+    private void aktualizujKoszty() {
+        if (era == 2) {
+            kosztT1.setText("Koszt: 100");
+            kosztT2.setText("Koszt: 150");
+            kosztT3.setText("Koszt: 200");
+            kosztE.setText("Koszt: 600");
+
+        } else if (era == 3) {
+            kosztT1.setText("Koszt: 150");
+            kosztT2.setText("Koszt: 200");
+            kosztT3.setText("Koszt: 250");
+        }
+    }
+
+    private void uruchomTimeryGry() {
+        Random rand = new Random();
+
+        int czasEra2 = rand.nextInt(20000) + 40000;
+        int czasEra3 = rand.nextInt(80000) + 80000;
+
+        Timer timerEra2 = new Timer(czasEra2, e -> {
+            eraPrzeciwnika = 2;
+            usunBaze(bazaPrzeciwnika);
+            baseWSpawn();
+        });
+
+        Timer timerEra3 = new Timer(czasEra3, e -> {
+            eraPrzeciwnika = 3;
+            usunBaze(bazaPrzeciwnika);
+            baseWSpawn();
+        });
+
+        timerEra2.setRepeats(false);
+        timerEra3.setRepeats(false);
+
+        Timer timerPrzeciwnik = new Timer(3800, e -> {
+            if (bazaGracza.hp > 0 && bazaPrzeciwnika.hp > 0) {
+                OperacjePrzeciwnika();
+            }
+
+            koniecGry(bazaGracza, bazaPrzeciwnika, timerEra2, timerEra3);
+        });
+
+        Timer timerPieniadze = new Timer(5000, e -> {
+            bazaGracza.dodajPieniadze(100);
+            pieniadze.setText("Pieniądze: " + bazaGracza.pieniadze);
+        });
+
+        timerEra2.start();
+        timerEra3.start();
+        timerPrzeciwnik.start();
+        timerPieniadze.start();
+    }
+
+    private Timer createTimerForPlayer(Wojownik wojownik, int nagrodaDojsciaDoBazy) {
+        Timer timer = new Timer(25, new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                wojownik.przesunTest(5, bazaPrzeciwnika, hpBazyWroga, backgroundPanel, listaWrogow, nagrodaDojsciaDoBazy, bazaGracza, pieniadze);
+                if (!wojownik.aktywny) {
+                    listaWojownikow.remove(wojownik);
+                    ((Timer) e.getSource()).stop();
+                }
+            }
+        });
+        return timer;
+    }
 
     //Działania przeciwnika
     public void OperacjePrzeciwnika() {
-
-
-
+        if (!czyMoznaRekrutowacWroga()) {
+            return;
+        }
         Random rand = new Random();
-        int liczbaPrzeciwnik = rand.nextInt(5);
-        System.out.println(liczbaPrzeciwnik);
-
-        if (eraPrzeciwnika == 1) {
-            if (liczbaPrzeciwnik == 0) {
-                WojownikWrog wojownikWrog = new WojownikWrog( 5, 50, "grafiki\\t1_m_wrog.png", hpBazyGracza, backgroundPanel);
-                listaWrogow.add(wojownikWrog);
-
-                wojownikWrog.setOpaque(false);
-                wojownikWrog.setVisible(true);
-                wojownikWrog.setBounds(1000, 600, 175, 150);
-
-                backgroundPanel.add(wojownikWrog);
-
-                Timer timer = new Timer(25, new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        wojownikWrog.przesunTest(5, bazaGracza, hpBazyGracza, backgroundPanel, listaWojownikow);
-                        if(wojownikWrog.getX()==100){
-                            listaWrogow.remove(wojownikWrog);
-                        }
-                    }
-                });
-                timer.start();
-
-                liczbaPrzeciwnik = rand.nextInt(5);
-            }
-            if (liczbaPrzeciwnik == 1) {
-                WojownikWrog wojownikWrog = new WojownikWrog(10, 100, "grafiki\\t1_w_wrog.png", hpBazyGracza, backgroundPanel);
-                listaWrogow.add(wojownikWrog);
-
-                wojownikWrog.setOpaque(false);
-                wojownikWrog.setVisible(true);
-                wojownikWrog.setBounds(1000, 575, 175, 150);
-
-                backgroundPanel.add(wojownikWrog);
-
-                Timer timer = new Timer(25, new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        wojownikWrog.przesunTest(5, bazaGracza, hpBazyGracza, backgroundPanel, listaWojownikow);
-                        if(wojownikWrog.getX()==100){
-                            listaWrogow.remove(wojownikWrog);
-                        }
-                    }
-                });
-                timer.start();
-
-                liczbaPrzeciwnik = rand.nextInt(5);
-            }
-            if (liczbaPrzeciwnik == 2) {
-                WojownikWrog wojownikWrog = new WojownikWrog( 20, 100, "grafiki\\t1_s_wrog.png", hpBazyGracza, backgroundPanel);
-                listaWrogow.add(wojownikWrog);
-
-                wojownikWrog.setOpaque(false);
-                wojownikWrog.setVisible(true);
-                wojownikWrog.setBounds(1000, 550, 175, 150);
-
-                backgroundPanel.add(wojownikWrog);
-
-                Timer timer = new Timer(25, new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        wojownikWrog.przesunTest(5, bazaGracza, hpBazyGracza, backgroundPanel, listaWojownikow);
-                        if(wojownikWrog.getX()==100){
-                            listaWrogow.remove(wojownikWrog);
-                        }
-                    }
-                });
-                timer.start();
-
-                liczbaPrzeciwnik = rand.nextInt(5); //liczbaPrzeciwnik losowa od 0 do 9
-            }
-
-            if (liczbaPrzeciwnik == 3) {
-                liczbaPrzeciwnik = rand.nextInt(5);
-            }
-            if (liczbaPrzeciwnik == 4) {
-                liczbaPrzeciwnik = rand.nextInt(5);
-            }
-            else{}
+        int los = rand.nextInt(5);
+        // 3 i 4 oznaczają brak rekrutacji
+        if (los >= 3) {
+            return;
         }
-        if (eraPrzeciwnika == 2) {
-            if (liczbaPrzeciwnik == 0) {
-                WojownikWrog wojownikWrog = new WojownikWrog( 10, 50, "grafiki\\t2_m_wrog.png", hpBazyGracza, backgroundPanel);
-                listaWrogow.add(wojownikWrog);
+        switch (eraPrzeciwnika) {
+            case 1:
+                switch (los) {
+                    case 0 -> rekrutujWroga(5, 50, "graphics/t1_m_wrog.png", 1000, 600, 175, 150);
+                    case 1 -> rekrutujWroga(10, 100, "graphics/t1_w_wrog.png", 1000, 575, 175, 150);
+                    case 2 -> rekrutujWroga(20, 100, "graphics/t1_s_wrog.png", 1000, 550, 175, 150);
+                }
+                break;
 
-                wojownikWrog.setOpaque(false);
-                wojownikWrog.setVisible(true);
-                wojownikWrog.setBounds(1000, 575, 175, 150);
+            case 2:
+                switch (los) {
+                    case 0 -> rekrutujWroga(10, 50, "graphics/t2_m_wrog.png", 1000, 575, 175, 150);
+                    case 1 -> rekrutujWroga(15, 100, "graphics/t2_w_wrog.png", 1000, 575, 175, 150);
+                    case 2 -> rekrutujWroga(30, 100, "graphics/t2_s_wrog.png", 1000, 550, 240, 175);
+                }
+                break;
 
-                backgroundPanel.add(wojownikWrog);
-
-                Timer timer = new Timer(25, new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        wojownikWrog.przesunTest(5, bazaGracza, hpBazyGracza, backgroundPanel, listaWojownikow);
-                        if(wojownikWrog.getX()==100){
-                            listaWrogow.remove(wojownikWrog);
-
-                        }
-                    }
-                });
-                timer.start();
-
-                liczbaPrzeciwnik = rand.nextInt(5);
-            }
-            if (liczbaPrzeciwnik == 1) {
-                WojownikWrog wojownikWrog = new WojownikWrog( 15, 100, "grafiki\\t2_w_wrog.png", hpBazyGracza, backgroundPanel);
-                listaWrogow.add(wojownikWrog);
-
-                wojownikWrog.setOpaque(false);
-                wojownikWrog.setVisible(true);
-                wojownikWrog.setBounds(1000, 575, 175, 150);
-
-                backgroundPanel.add(wojownikWrog);
-
-                Timer timer = new Timer(25, new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        wojownikWrog.przesunTest(5, bazaGracza, hpBazyGracza, backgroundPanel, listaWojownikow);
-                        if(wojownikWrog.getX()==100){
-                            listaWrogow.remove(wojownikWrog);
-                        }
-                    }
-                });
-                timer.start();
-
-                liczbaPrzeciwnik = rand.nextInt(5);
-            }
-            if (liczbaPrzeciwnik == 2) {
-                WojownikWrog wojownikWrog = new WojownikWrog( 30, 100, "grafiki\\t2_s_wrog.png", hpBazyGracza, backgroundPanel);
-                listaWrogow.add(wojownikWrog);
-
-                wojownikWrog.setOpaque(false);
-                wojownikWrog.setVisible(true);
-                wojownikWrog.setBounds(1000, 550, 240, 175);
-
-                backgroundPanel.add(wojownikWrog);
-
-                Timer timer = new Timer(25, new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        wojownikWrog.przesunTest(5, bazaGracza, hpBazyGracza, backgroundPanel, listaWojownikow);
-                        if(wojownikWrog.getX()==100){
-                            listaWrogow.remove(wojownikWrog);
-
-                        }
-                    }
-                });
-                timer.start();
-
-                liczbaPrzeciwnik = rand.nextInt(5); //liczbaPrzeciwnik losowa od 0 do 9
-            }
-
-            if (liczbaPrzeciwnik == 3) {
-                liczbaPrzeciwnik = rand.nextInt(5);
-            }
-            if (liczbaPrzeciwnik == 4) {
-                liczbaPrzeciwnik = rand.nextInt(5);
-            }
-            else{}
+            case 3:
+                switch (los) {
+                    case 0 -> rekrutujWroga(20, 50, "graphics/t3_m_wrog.png", 1000, 575, 115, 150);
+                    case 1 -> rekrutujWroga(30, 100, "graphics/t3_w_wrog.png", 1000, 575, 90, 150);
+                    case 2 -> rekrutujWroga(40, 100, "graphics/t3_s_wrog.png", 1000, 570, 90, 150);
+                }
+                break;
         }
-
-        if (eraPrzeciwnika == 3) {
-            if (liczbaPrzeciwnik == 0) {
-                WojownikWrog wojownikWrog = new WojownikWrog( 20, 50, "grafiki\\t3_m_wrog.png", hpBazyGracza, backgroundPanel);
-                listaWrogow.add(wojownikWrog);
-
-                wojownikWrog.setOpaque(false);
-                wojownikWrog.setVisible(true);
-                wojownikWrog.setBounds(1000, 575, 115, 150);
-
-                backgroundPanel.add(wojownikWrog);
-
-                Timer timer = new Timer(25, new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        wojownikWrog.przesunTest(5, bazaGracza, hpBazyGracza, backgroundPanel, listaWojownikow);
-                        if(wojownikWrog.getX()==100){
-                            listaWrogow.remove(wojownikWrog);
-
-                        }
-                    }
-                });
-                timer.start();
-
-                liczbaPrzeciwnik = rand.nextInt(5);
-            }
-            if (liczbaPrzeciwnik == 1) {
-                WojownikWrog wojownikWrog = new WojownikWrog( 30, 100, "grafiki\\t3_w_wrog.png", hpBazyGracza, backgroundPanel);
-                listaWrogow.add(wojownikWrog);
-
-                wojownikWrog.setOpaque(false);
-                wojownikWrog.setVisible(true);
-                wojownikWrog.setBounds(1000, 575, 90, 150);
-
-                backgroundPanel.add(wojownikWrog);
-
-                Timer timer = new Timer(25, new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        wojownikWrog.przesunTest(5, bazaGracza, hpBazyGracza, backgroundPanel, listaWojownikow);
-                        if(wojownikWrog.getX()==100){
-                            listaWrogow.remove(wojownikWrog);
-                        }
-                    }
-                });
-                timer.start();
-
-                liczbaPrzeciwnik = rand.nextInt(5);
-            }
-            if (liczbaPrzeciwnik == 2) {
-                WojownikWrog wojownikWrog = new WojownikWrog( 40, 100, "grafiki\\t3_s_wrog.png", hpBazyGracza, backgroundPanel);
-                listaWrogow.add(wojownikWrog);
-
-                wojownikWrog.setOpaque(false);
-                wojownikWrog.setVisible(true);
-                wojownikWrog.setBounds(1000, 570, 90, 150);
-
-                backgroundPanel.add(wojownikWrog);
-
-                Timer timer = new Timer(25, new ActionListener() {
-                    public void actionPerformed(ActionEvent e) {
-                        wojownikWrog.przesunTest(5, bazaGracza, hpBazyGracza, backgroundPanel, listaWojownikow);
-                        if(wojownikWrog.getX()==100){
-                            listaWrogow.remove(wojownikWrog);
-
-                        }
-                    }
-                });
-                timer.start();
-
-                liczbaPrzeciwnik = rand.nextInt(5); //liczbaPrzeciwnik losowa od 0 do 9
-            }
-
-            if (liczbaPrzeciwnik == 3) {
-                liczbaPrzeciwnik = rand.nextInt(5);
-            }
-            if (liczbaPrzeciwnik == 4) {
-                liczbaPrzeciwnik = rand.nextInt(5);
-            }
-            else{}
-        }
-
     }
 
-    public void koniecGry(Baza bazaGracza,Baza bazaPrzeciwnika, Timer timer1, Timer timer2){
-        if(bazaGracza.hp <= 0 ){
+    private void rekrutujWroga(int damage, int koszt, String sciezka, int x, int y, int szerokosc, int wysokosc) {
+        WojownikWrog wrog = new WojownikWrog(damage, koszt, sciezka, hpBazyGracza, backgroundPanel);
+        wrog.setOpaque(false);
+        wrog.setBounds(x, y, szerokosc, wysokosc);
+        listaWrogow.add(wrog);
+        backgroundPanel.add(wrog);
+        ostatniaRekrutacjaWroga = System.currentTimeMillis();
+        Timer timer = createTimerForEnemies(wrog);
+        timer.start();
+    }
+
+    private Timer createTimerForEnemies(WojownikWrog wojownikWrog) {
+        return new Timer(25, new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                wojownikWrog.przesunTest(5, bazaGracza, hpBazyGracza, backgroundPanel, listaWojownikow);
+                if (!wojownikWrog.aktywny) {
+                    listaWrogow.remove(wojownikWrog);
+                    ((Timer) e.getSource()).stop();
+                }
+            }
+        });
+    }
+
+    public void koniecGry(Baza bazaGracza, Baza bazaPrzeciwnika, Timer timer1, Timer timer2) {
+        if (bazaGracza.hp <= 0) {
             pieniadze.setVisible(false);
             hpBazyWroga.setVisible(false);
             hpBazyGracza.setVisible(false);
@@ -895,18 +489,15 @@ class Game extends JFrame implements ActionListener {
             kosztT2.setVisible(false);
             kosztT3.setVisible(false);
             kosztE.setVisible(false);
-
             rozpocznij.setVisible(true);
             zakoncz.setVisible(true);
-
             koniecGry.setText("Koniec gry, porażka!");
             koniecGry.setBounds(520, 0, 250, 250);
             backgroundPanel.add(koniecGry);
             koniecGry.setVisible(true);
             timer1.restart();
             timer2.restart();
-        }
-        else if(bazaPrzeciwnika.hp <= 0){
+        } else if (bazaPrzeciwnika.hp <= 0) {
             pieniadze.setVisible(false);
             hpBazyWroga.setVisible(false);
             hpBazyGracza.setVisible(false);
@@ -918,10 +509,8 @@ class Game extends JFrame implements ActionListener {
             kosztT2.setVisible(false);
             kosztT3.setVisible(false);
             kosztE.setVisible(false);
-            
             rozpocznij.setVisible(true);
             zakoncz.setVisible(true);
-
             koniecGry.setText("Koniec gry, zwycięstwo!");
             koniecGry.setBounds(520, 0, 250, 250);
             backgroundPanel.add(koniecGry);
@@ -929,8 +518,15 @@ class Game extends JFrame implements ActionListener {
             timer1.restart();
             timer2.restart();
         }
-
     }
 
+    private boolean czyMoznaRekrutowacGracza() {
+        long teraz = System.currentTimeMillis();
+        return teraz - ostatniaRekrutacjaGracza >= COOLDOWN_REKRUTACJI;
+    }
 
-};
+    private boolean czyMoznaRekrutowacWroga() {
+        long teraz = System.currentTimeMillis();
+        return teraz - ostatniaRekrutacjaWroga >= COOLDOWN_REKRUTACJI;
+    }
+}
